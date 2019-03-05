@@ -1,0 +1,25 @@
+.dayButton {
+  outline: none;
+  width: calc(95%/7);
+  height: 50px;
+  border-radius: 4px;
+  margin: 0 2px;
+  background-color: #fff;
+  color: #000;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 300;
+  font-size: 14px;
+  border: 1px solid black;
+}
+
+.dayButton.selected {
+  background-color: #444;
+  color: #fff;
+}
+
+@media screen and (max-width: 768px) {
+  .dayButton {
+    margin: 0 1px;
+    font-size: 15px;
+  }
+}
