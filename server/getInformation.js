@@ -81,20 +81,17 @@ async function getSodexo(sodexoRestaurants) {
     sodexoInfo.push(restaurantInfo);
   }
   for (let sInfo of sodexoInfo) {
-  // await async.each(sodexoInfo, async function(sInfo) {
     let weeksPortions = [];
     let restaurantName = "";
     await rp(sInfo[0]).then(async function(b) {
       restaurantName = JSON.parse(b).meta.ref_title;
     });
     for (let jsonAddress of sInfo) {
-    // await async.each(sInfo, async function(jsonAddress) {
       let daysPortions = [];
       await rp(jsonAddress).then(async function(body) {
         let sodexoJson = JSON.parse(body);
 
         for (let portion of sodexoJson.courses) {
-        // await async.each(sodexoJson.courses, (async function(portion) {
           restaurantName = sodexoJson.meta.ref_title;
           let allergies = "";
 
@@ -229,42 +226,49 @@ async function getStudentlunch(slRestaurant) {
         let restaurantName = restaurantIds[i];
         let weeksPortions = [];
 
+        let empty_days = 0;
+
         for (let j = 0; j < 6; j++) {
           let daysPortions = [];
 
-          let day = $("table[class=week-list] tbody").eq(j);
-          for (let k = 0; k < day.children("tr").length; k++) {
-            if (day.children("tr").eq(k).children(".food").text().length > 2) {
-              let item = {
-                  meal: day.children("tr").eq(k).children(".food").text().replace("*", ""),
-                  price: (day.children("tr").eq(k).children(".price-student").text().length > 2 ?
-                    day.children("tr").eq(k).children(".price-student").text() :
-                    ""),
-                  nutrientContent: "",
-                  allergies: ""
-              };
-              if (day.children("tr").eq(k).children(".food").children("a").attr("title") != undefined) {
-                item.nutrientContent = day.children("tr").eq(k).children(".food").children("a").attr("title");
+          let day = $("table[class=week-list]").eq(j);
+          if (day.find($("tbody")).length > 0) {
+            day = $("table[class=week-list] tbody").eq(j - empty_days);
+            for (let k = 0; k < day.children("tr").length; k++) {
+              if (day.children("tr").eq(k).children(".food").text().length > 2) {
+                let item = {
+                    meal: day.children("tr").eq(k).children(".food").text().replace("*", ""),
+                    price: (day.children("tr").eq(k).children(".price-student").text().length > 2 ?
+                      day.children("tr").eq(k).children(".price-student").text() :
+                      ""),
+                    nutrientContent: "",
+                    allergies: ""
+                };
+                if (day.children("tr").eq(k).children(".food").children("a").attr("title") != undefined) {
+                  item.nutrientContent = day.children("tr").eq(k).children(".food").children("a").attr("title");
+                }
+
+                day.children("tr").eq(k).children(".food-allergies").children(".food-diet").each(function(idx) {
+                  a = day.children("tr").eq(k).children(".food-allergies").children(".food-diet").eq(idx).text();
+                  if (a === "Vgn") {
+                    item.allergies += "Veg ";
+                  }
+                  if (a === "L") {
+                    item.allergies += "L ";
+                  }
+                  if (a === "M") {
+                    item.allergies += "M ";
+                  }
+                  if (a === "G") {
+                    item.allergies += "G ";
+                  }
+                });
+
+                daysPortions.push(item);
               }
-
-              day.children("tr").eq(k).children(".food-allergies").children(".food-diet").each(function(idx) {
-                a = day.children("tr").eq(k).children(".food-allergies").children(".food-diet").eq(idx).text();
-                if (a === "Vgn") {
-                  item.allergies += "Veg ";
-                }
-                if (a === "L") {
-                  item.allergies += "L ";
-                }
-                if (a === "M") {
-                  item.allergies += "M ";
-                }
-                if (a === "G") {
-                  item.allergies += "G ";
-                }
-              });
-
-              daysPortions.push(item);
             }
+          } else {
+            empty_days += 1;
           }
           weeksPortions.push(daysPortions);
         }
@@ -278,6 +282,46 @@ async function getStudentlunch(slRestaurant) {
       });
     })(i);
   }
+}
+
+async function getPiccuMaccia(piccuMaccia) {
+
+  request(piccuMaccia, function(error, response, body) {
+    const $ = cheerio.load(body);
+
+    weeksPortions = []
+    daysPortions = []
+
+    let rows = $(".keditable").contents();
+
+    for (let i=0; i < rows.get().length; i++) {
+      t = rows.eq(i).first().text();
+      if (t.substring(0, 4).toLowerCase() == "deli") {
+        meal = t.substring(6);
+        price = ""
+        for (let j=1; j<6; j++) {
+          f = rows.eq(i+j).first().text().trim().substring(0, 1);
+          if (f && !isNaN(f)) {
+            price = rows.eq(i+j).first().text().trim().substring(0, 4) +  " €";
+
+            daysPortions.push({meal: meal, price: price})
+            break;
+          }
+        }
+      } else if (["tiistai", "keskiviikko", "torstai", "perjantai", "lauantai", "sunnuntai"].includes(t.toLowerCase())) {
+        weeksPortions.push(daysPortions)
+        daysPortions = []
+      }
+
+    }
+
+    info.push({
+      name: "Piccu Maccia",
+      portions: weeksPortions
+    });
+    info.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
+
+  });
 }
 
 async function getInfo() {
@@ -297,13 +341,19 @@ async function getInfo() {
                 ];
   let monttu = ["http://juvenes.fi/DesktopModules/Talents.LunchMenu/LunchMenuServices.asmx/GetMenuByDate?KitchenId=50&MenuTypeId=60&Date=", "&lang=fi"]
   let slRestaurants = ["http://www.studentlunch.fi/fi/lounas/viikonlista?"]
+  let piccuMaccia = "https://www.piccumaccia.fi/1_13_lounas.html";
 
-  getUnica(unicaRestaurants);
-  getMonttu(monttu);
-  getStudentlunch(slRestaurants);
-  getSodexo(sodexoRestaurants);
+
+  await Promise.all([
+    getSodexo(sodexoRestaurants),
+    getUnica(unicaRestaurants),
+    getMonttu(monttu),
+    getStudentlunch(slRestaurants),
+    getPiccuMaccia(piccuMaccia)
+  ]);
 }
 
 getInfo();
+
 
 module.exports = info
