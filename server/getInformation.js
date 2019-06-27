@@ -285,42 +285,47 @@ async function getStudentlunch(slRestaurant) {
 }
 
 async function getPiccuMaccia(piccuMaccia) {
+  request(piccuMaccia, function(err, res, bd) {
+    var $ = cheerio.load(bd);
+    suffix = $(".menuHolder.topmenu > li > a").eq(2).first().attr("href");
 
-  request(piccuMaccia, function(error, response, body) {
-    const $ = cheerio.load(body);
+    request(piccuMaccia + suffix, function(error, response, body) {
+      $ = cheerio.load(body);
 
-    weeksPortions = []
-    daysPortions = []
+      weeksPortions = []
+      daysPortions = []
 
-    let rows = $(".keditable").contents();
+      let rows = $(".keditable").contents();
 
-    for (let i=0; i < rows.get().length; i++) {
-      t = rows.eq(i).first().text();
-      if (t.substring(0, 4).toLowerCase() == "deli") {
-        meal = t.substring(6);
-        price = ""
-        for (let j=1; j<6; j++) {
-          f = rows.eq(i+j).first().text().trim().substring(0, 1);
-          if (f && !isNaN(f)) {
-            price = rows.eq(i+j).first().text().trim().substring(0, 4) +  " €";
+      for (let i=0; i < rows.get().length; i++) {
+        t = rows.eq(i).first().text();
 
-            daysPortions.push({meal: meal, price: price})
-            break;
+        if (t.substring(0, 4).toLowerCase() == "deli") {
+          meal = t.substring(6);
+          price = ""
+          for (let j=1; j<6; j++) {
+            f = rows.eq(i+j).first().text().trim().substring(0, 1);
+            if (f && !isNaN(f)) {
+              price = rows.eq(i+j).first().text().trim().substring(0, 4) +  " €";
+
+              daysPortions.push({meal: meal, price: price})
+              break;
+            }
           }
+        } else if (["tiistai", "keskiviikko", "torstai", "perjantai", "lauantai", "sunnuntai"].includes(t.toLowerCase()) || i == rows.get().length - 1) {
+          weeksPortions.push(daysPortions)
+          daysPortions = []
         }
-      } else if (["tiistai", "keskiviikko", "torstai", "perjantai", "lauantai", "sunnuntai"].includes(t.toLowerCase())) {
-        weeksPortions.push(daysPortions)
-        daysPortions = []
+
       }
 
-    }
+      info.push({
+        name: "Piccu Maccia",
+        portions: weeksPortions
+      });
+      info.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
 
-    info.push({
-      name: "Piccu Maccia",
-      portions: weeksPortions
     });
-    info.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
-
   });
 }
 
@@ -341,7 +346,7 @@ async function getInfo() {
                 ];
   let monttu = ["http://juvenes.fi/DesktopModules/Talents.LunchMenu/LunchMenuServices.asmx/GetMenuByDate?KitchenId=50&MenuTypeId=60&Date=", "&lang=fi"]
   let slRestaurants = ["http://www.studentlunch.fi/fi/lounas/viikonlista?"]
-  let piccuMaccia = "https://www.piccumaccia.fi/1_13_lounas.html";
+  let piccuMaccia = "https://www.piccumaccia.fi/";
 
 
   await Promise.all([
