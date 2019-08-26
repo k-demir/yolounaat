@@ -119,6 +119,7 @@ async function getSodexo(sodexoRestaurants) {
 }
 
 async function getMonttu(monttu) {
+  let menuTypeIds = ["60", "77"]
   let dates = [];
 
   let dt = new Date();
@@ -137,57 +138,59 @@ async function getMonttu(monttu) {
 
   for (let date of dates) {
     let daysPortions = [];
-    await rp(monttu[0] + date + monttu[1]).then(async function(body) {
-      body = body.slice(82, -9);
+    for (let menuType of menuTypeIds) {
+      await rp(monttu[0] + menuType + monttu[1] + date + monttu[2]).then(async function(body) {
+        body = body.slice(82, -9);
 
-      let monttuJson = JSON.parse(body);
+        let monttuJson = JSON.parse(body);
 
-      for (let portion of monttuJson.MealOptions) {
-        let meal = "";
-        let price = "";
-        let allergies = "";
-        let g = true;
-        let l = true;
-        let veg = true;
-        let m = true;
+        for (let portion of monttuJson.MealOptions) {
+          let meal = "";
+          let price = "";
+          let allergies = "";
+          let g = true;
+          let l = true;
+          let veg = true;
+          let m = true;
 
-        if (portion.Price == "4.54") {
-          price = "2,60 €";
-        }
+          if (portion.Price == "4.54") {
+            price = "2,60 €";
+          }
 
-        for (let ml of portion.MenuItems) {
-          if (ml.Name_FI) {
-            meal += (!meal ? ml.Name_FI : ", " + ml.Name_FI.toLowerCase());
+          for (let ml of portion.MenuItems) {
+            if (ml.Name_FI) {
+              meal += (!meal ? ml.Name_FI : ", " + ml.Name_FI.toLowerCase());
 
-            if (!ml.Diets.includes("VE,") || !ml.Diets.includes(",VE")) {
-              veg = false;
-            }
-            if (!ml.Diets.includes("L,") || !ml.Diets.includes(",L")) {
-              l = false;
-            }
-            if (!ml.Diets.includes("M,") || !ml.Diets.includes(",M")) {
-              m = false;
-            }
-            if (!ml.Diets.includes("G,") || !ml.Diets.includes(",G")) {
-              g = false;
+              if (!ml.Diets.includes("VE,") || !ml.Diets.includes(",VE")) {
+                veg = false;
+              }
+              if (!ml.Diets.includes("L,") || !ml.Diets.includes(",L")) {
+                l = false;
+              }
+              if (!ml.Diets.includes("M,") || !ml.Diets.includes(",M")) {
+                m = false;
+              }
+              if (!ml.Diets.includes("G,") || !ml.Diets.includes(",G")) {
+                g = false;
+              }
             }
           }
-        }
 
-        if (g === true) {allergies += "G ";}
-        if (l === true) {allergies += "L ";}
-        if (m === true) {allergies += "M ";}
-        if (veg === true) {allergies += "Veg ";}
+          if (g === true) {allergies += "G ";}
+          if (l === true) {allergies += "L ";}
+          if (m === true) {allergies += "M ";}
+          if (veg === true) {allergies += "Veg ";}
 
-        if (meal) {
-          daysPortions.push({
-            meal: meal,
-            price: price,
-            allergies: allergies
-          });
+          if (meal) {
+            daysPortions.push({
+              meal: meal,
+              price: price,
+              allergies: allergies
+            });
+          }
         }
-      }
-    });
+      });
+    }
     weeksPortions.push(daysPortions);
   }
 
@@ -337,14 +340,13 @@ async function getInfo() {
                   "http://www.unica.fi/fi/ravintolat/dental/",
                   "http://www.unica.fi/fi/ravintolat/galilei/",
                   "http://www.unica.fi/fi/ravintolat/macciavelli/",
-                  // "http://www.unica.fi/fi/ravintolat/nutritio/",
-                  // "http://www.unica.fi/fi/ravintolat/ruokakello/",
+                  "http://www.unica.fi/fi/ravintolat/linus/",
                   "http://www.unica.fi/fi/ravintolat/tottisalmi/"];
   let sodexoRestaurants = ["https://www.sodexo.fi/ruokalistat/output/daily_json/34666/",  // Flavoria
                   "https://www.sodexo.fi/ruokalistat/output/daily_json/54/",              // ICT
                   // "https://www.sodexo.fi/ruokalistat/output/daily_json/70/"            // Old Mill
                 ];
-  let monttu = ["http://juvenes.fi/DesktopModules/Talents.LunchMenu/LunchMenuServices.asmx/GetMenuByDate?KitchenId=50&MenuTypeId=60&Date=", "&lang=fi"]
+  let monttu = ["http://juvenes.fi/DesktopModules/Talents.LunchMenu/LunchMenuServices.asmx/GetMenuByDate?KitchenId=50&MenuTypeId=", "&Date=", "&lang=fi"]
   let slRestaurants = ["http://www.studentlunch.fi/fi/lounas/viikonlista?"]
   let piccuMaccia = "https://www.piccumaccia.fi/";
 
