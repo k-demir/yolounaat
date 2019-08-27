@@ -42,7 +42,9 @@ async function getUnica(unicaRestaurants) {
               }
 
             });
-
+            if (restaurantName == "Piccu Maccia" && portion.price.charAt(1) == '-') {
+              continue;
+            }
             daysPortions.push(portion);
           }
         }
@@ -53,7 +55,6 @@ async function getUnica(unicaRestaurants) {
         name: restaurantName,
         portions: weeksPortions
       });
-      info.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
     });
   });
 }
@@ -114,7 +115,6 @@ async function getSodexo(sodexoRestaurants) {
       name: restaurantName,
       portions: weeksPortions
     });
-    info.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
   }
 }
 
@@ -198,7 +198,6 @@ async function getMonttu(monttu) {
     name: "Monttu",
     portions: weeksPortions
   });
-  info.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
 }
 
 
@@ -280,57 +279,11 @@ async function getStudentlunch(slRestaurant) {
             name: restaurantName,
             portions: weeksPortions
         });
-        info.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
-
       });
     })(i);
   }
 }
 
-async function getPiccuMaccia(piccuMaccia) {
-  request(piccuMaccia, function(err, res, bd) {
-    var $ = cheerio.load(bd);
-    suffix = $(".menuHolder.topmenu > li > a").eq(2).first().attr("href");
-
-    request(piccuMaccia + suffix, function(error, response, body) {
-      $ = cheerio.load(body);
-
-      weeksPortions = []
-      daysPortions = []
-
-      let rows = $(".keditable").contents();
-
-      for (let i=0; i < rows.get().length; i++) {
-        t = rows.eq(i).first().text();
-
-        if (t.substring(0, 4).toLowerCase() == "deli") {
-          meal = t.substring(6);
-          price = ""
-          for (let j=1; j<6; j++) {
-            f = rows.eq(i+j).first().text().trim().substring(0, 1);
-            if (f && !isNaN(f)) {
-              price = rows.eq(i+j).first().text().trim().substring(0, 4) +  " €";
-
-              daysPortions.push({meal: meal, price: price})
-              break;
-            }
-          }
-        } else if (["tiistai", "keskiviikko", "torstai", "perjantai", "lauantai", "sunnuntai"].includes(t.toLowerCase()) || i == rows.get().length - 1) {
-          weeksPortions.push(daysPortions)
-          daysPortions = []
-        }
-
-      }
-
-      info.push({
-        name: "Piccu Maccia",
-        portions: weeksPortions
-      });
-      info.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);});
-
-    });
-  });
-}
 
 async function getInfo() {
   let unicaRestaurants = ["http://www.unica.fi/fi/ravintolat/assarin-ullakko/",
@@ -341,26 +294,23 @@ async function getInfo() {
                   "http://www.unica.fi/fi/ravintolat/galilei/",
                   "http://www.unica.fi/fi/ravintolat/macciavelli/",
                   "http://www.unica.fi/fi/ravintolat/linus/",
+                  "http://www.unica.fi/fi/ravintolat/piccu-maccia/",
                   "http://www.unica.fi/fi/ravintolat/tottisalmi/"];
   let sodexoRestaurants = ["https://www.sodexo.fi/ruokalistat/output/daily_json/34666/",  // Flavoria
                   "https://www.sodexo.fi/ruokalistat/output/daily_json/54/",              // ICT
-                  // "https://www.sodexo.fi/ruokalistat/output/daily_json/70/"            // Old Mill
                 ];
   let monttu = ["http://juvenes.fi/DesktopModules/Talents.LunchMenu/LunchMenuServices.asmx/GetMenuByDate?KitchenId=50&MenuTypeId=", "&Date=", "&lang=fi"]
   let slRestaurants = ["http://www.studentlunch.fi/fi/lounas/viikonlista?"]
-  let piccuMaccia = "https://www.piccumaccia.fi/";
 
 
   await Promise.all([
     getSodexo(sodexoRestaurants),
     getUnica(unicaRestaurants),
     getMonttu(monttu),
-    getStudentlunch(slRestaurants),
-    getPiccuMaccia(piccuMaccia)
+    getStudentlunch(slRestaurants)
   ]);
 }
 
 getInfo();
-
 
 module.exports = info

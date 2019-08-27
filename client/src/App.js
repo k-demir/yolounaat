@@ -29,6 +29,7 @@ class App extends Component {
       headers: {'Content-Type':'application/json'}
     })
       .then(res => res.json())
+      .then(resJson => resJson.sort(function(a, b) {return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);}))
       .then(resJson => {
         this.setState({data: resJson})
       });
