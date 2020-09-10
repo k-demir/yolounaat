@@ -9,7 +9,7 @@ let info = []
 async function getUnica(unicaRestaurants, mondayDate) {
   unicaRestaurants.forEach(restaurant => {
     let weeksItems = []
-    for (let i = 0; i < 7g; i++) {
+    for (let i = 0; i < 7; i++) {
       let dt = new Date(mondayDate.getTime())
       dt.setDate(dt.getDate() + i)
       let dateString = `${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}`
