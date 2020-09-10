@@ -1,121 +1,45 @@
-const request = require("request");
-const rp = require("request-promise");
-const async = require('async');
-const cheerio = require("cheerio");
+const request = require("request")
+const axios = require('axios')
+const rp = require('request-promise')
+const async = require('async')
+const cheerio = require("cheerio")
 
-let info = [];
+let info = []
 
-async function getUnica(unicaRestaurants) {
-  unicaRestaurants.forEach(function(restaurant) {
-    request(restaurant,  function(error, response, body) {
-      const $ = cheerio.load(body);
+async function getUnica(unicaRestaurants, mondayDate) {
+  unicaRestaurants.forEach(restaurant => {
+    let weeksItems = []
+    for (let i = 0; i < 7g; i++) {
+      let dt = new Date(mondayDate.getTime())
+      dt.setDate(dt.getDate() + i)
+      let dateString = `${dt.getFullYear()}-${dt.getMonth()+1}-${dt.getDate()}`
+      let url = `https://www.unica.fi/api/restaurant/menu/day?date=${dateString}&language=fi&restaurantPageId=${restaurant[1]}`
 
-      let restaurantName = $(".head h1").text();
-      let weeksPortions = [];
-
-      for (let j = 0; j < 7; j++) {
-        let daysPortions = [];
-
-        for (let i = 0; i < $("h4[data-dayofweek='" + j + "']+table .lunch").length; i++) {
-          if ($("h4[data-dayofweek='" + j + "']+table .lunch").eq(i).text().length > 1) {
-            let portion = {
-              meal: $("h4[data-dayofweek='" + j + "']+table .lunch").eq(i).text().replace("*", ""),
-              price: $("h4[data-dayofweek='" + j + "']+table .price").eq(i).text().replace(/(\t|\n)/gm,"")
-                .replace("Hinta:", "")
-                .replace(/\/.*/, " €"),
-              allergies: ""
-            };
-
-            $("h4[data-dayofweek='" + j + "']+table .limitations").eq(i).children().each(function(idx) {
-              a = $("h4[data-dayofweek='" + j + "']+table .limitations").eq(i).children().eq(idx).text();
-              if (a === "VEG") {
-                portion.allergies += "Veg ";
-              }
-              if (a === "L") {
-                portion.allergies += "L ";
-              }
-              if (a === "M") {
-                portion.allergies += "M ";
-              }
-              if (a === "G") {
-                portion.allergies += "G ";
-              }
-
-            });
-            if (restaurantName == "Piccu Maccia" && portion.price.charAt(1) == '-') {
-              continue;
-            }
-            daysPortions.push(portion);
-          }
-        }
-        weeksPortions.push(daysPortions);
-      }
-
-      info.push({
-        name: restaurantName,
-        portions: weeksPortions
-      });
-    });
-  });
-}
-
-async function getSodexo(sodexoRestaurants) {
-  let dates = [];
-  let sodexoInfo = [];
-
-  let dt = new Date();
-  let day = dt.getDay() === 0 ? 6 : dt.getDay() - 1;
-  dt.setDate(dt.getDate()-day);
-
-  for (let i = 0; i < 6; i++) {
-    let dt2 = new Date(dt.getTime());
-    dt2.setDate(dt2.getDate() + i);
-    let date = dt2.getFullYear() + "/" + ('0' + (dt2.getMonth()+1)).slice(-2) + "/" + ('0' + dt2.getDate()).slice(-2);
-    dates.push(date);
-  }
-
-  for (let i = 0; i < sodexoRestaurants.length; i++) {
-    let restaurantInfo = [];
-    for (let j = 0; j < dates.length; j++) {
-      restaurantInfo.push(sodexoRestaurants[i] + dates[j] + "/fi");
-    }
-    sodexoInfo.push(restaurantInfo);
-  }
-  for (let sInfo of sodexoInfo) {
-    let weeksPortions = [];
-    let restaurantName = "";
-    await rp(sInfo[0]).then(async function(b) {
-      restaurantName = JSON.parse(b).meta.ref_title;
-    });
-    for (let jsonAddress of sInfo) {
-      let daysPortions = [];
-      await rp(jsonAddress).then(async function(body) {
-        let sodexoJson = JSON.parse(body);
-
-        for (let portion of sodexoJson.courses) {
-          restaurantName = sodexoJson.meta.ref_title;
-          let allergies = "";
-
-          if (portion.category != undefined && portion.category == "Vegaani") {allergies += "Veg ";}
-          if (portion.properties != undefined) {
-            if (portion.properties.includes("L")) {allergies += "L ";}
-            if (portion.properties.includes("M")) {allergies += "M ";}
-            if (portion.properties.includes("G")) {allergies += "G ";}
-          }
-          daysPortions.push({
-            meal: portion.title_fi,
-            price: (portion.price != undefined ? portion.price + " €" : "").replace(/\/.*/, " €"),
-            allergies: allergies
-          });
-        }
-      });
-      weeksPortions.push(daysPortions);
+      let daysItems = []
+      axios
+        .get(url)
+        .then(res => {
+          res.data['LunchMenu']['SetMenus'].forEach(menu => {
+            let menuItem = menu['Name'] ? `${menu['Name']}: ` : ''
+            menu['Meals'].forEach(meal => {
+              menuItem += `${meal['Name']}, `
+            })
+            menuItem = menuItem.charAt(0).toUpperCase() + menuItem.slice(1).toLowerCase()
+            daysItems.push({
+              meal: menuItem.substring(0, menuItem.length - 2),
+              price: menu['Price'] ? `${menu['Price'].substring(0, 4)} €` : '',
+              allergies: null
+            })
+          })
+        })
+        .catch(err => console.log(err))
+      weeksItems.push(daysItems)
     }
     info.push({
-      name: restaurantName,
-      portions: weeksPortions
-    });
-  }
+      name: restaurant[0],
+      portions: weeksItems
+    })
+  })
 }
 
 async function getMonttu(monttu) {
@@ -286,31 +210,31 @@ async function getStudentlunch(slRestaurant) {
 
 
 async function getInfo() {
-  let unicaRestaurants = ["http://www.unica.fi/fi/ravintolat/assarin-ullakko/",
-                  "http://www.unica.fi/fi/ravintolat/brygge/",
-                  "http://www.unica.fi/fi/ravintolat/delica/",
-                  "http://www.unica.fi/fi/ravintolat/deli-pharma/",
-                  "http://www.unica.fi/fi/ravintolat/dental/",
-                  "http://www.unica.fi/fi/ravintolat/galilei/",
-                  "http://www.unica.fi/fi/ravintolat/macciavelli/",
-                  "http://www.unica.fi/fi/ravintolat/linus/",
-                  "http://www.unica.fi/fi/ravintolat/piccu-maccia/",
-                  "http://www.unica.fi/fi/ravintolat/tottisalmi/"];
-  let sodexoRestaurants = ["https://www.sodexo.fi/ruokalistat/output/daily_json/34666/",  // Flavoria
-                  "https://www.sodexo.fi/ruokalistat/output/daily_json/54/",              // ICT
-                ];
-  let monttu = ["http://juvenes.fi/DesktopModules/Talents.LunchMenu/LunchMenuServices.asmx/GetMenuByDate?KitchenId=50&MenuTypeId=", "&Date=", "&lang=fi"]
-  let slRestaurants = ["http://www.studentlunch.fi/fi/lounas/viikonlista?"]
+  const unicaRestaurants = [
+    ['Assarin ullakko', '297238'],
+    ['Macciavelli', '297392'],
+    ['Galilei', '299771'],
+    ['Tottisalmi', '297547'],
+    ['Kisälli', '297699'],
+    ['Linus', '299809'],
+    ['Delica', '297825'],
+    ['Dental', '299819']
+  ]
+  const monttu = ["http://juvenes.fi/DesktopModules/Talents.LunchMenu/LunchMenuServices.asmx/GetMenuByDate?KitchenId=50&MenuTypeId=", "&Date=", "&lang=fi"]
+  const slRestaurants = ["http://www.studentlunch.fi/fi/lounas/viikonlista?"]
 
+  let currentDate = new Date()
+  let mondayDate = new Date()
+  let day = mondayDate.getDay() === 0 ? 6 : mondayDate.getDay() - 1
+  mondayDate.setDate(mondayDate.getDate()-day)
 
   await Promise.all([
-    getSodexo(sodexoRestaurants),
-    getUnica(unicaRestaurants),
+    getUnica(unicaRestaurants, mondayDate),
     getMonttu(monttu),
     getStudentlunch(slRestaurants)
-  ]);
+  ])
 }
 
-getInfo();
+getInfo()
 
 module.exports = info
